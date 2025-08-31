@@ -1,0 +1,751 @@
+---
+title: |
+  <div style="text-align: center;">
+   Books Data Analysis Report
+    <br><span style="font-size: 24px;">MTH208 - Data Science Lab - I
+    <br>Instructor: Dr. Dootika Vats</span>
+    <br><span style="font-size: 18px;">Group 6: Raj Chandravanshi, Aman Sanwal, Kritika Pandey, Rhythm Agrawal</span>
+  </div>
+output: html_document
+
+---
+
+<br>
+<div style="text-align: center; font-size: 28px;">Acknowledgement</div>
+
+We would like to extend our heartfelt thanks to Professor Dootika Vats for her invaluable guidance and support throughout the development of our Book Data Analysis project. Her expert feedback, encouragement, and dedication have played a crucial role in the success of this project. We are deeply grateful for her patience and commitment in helping us overcome the challenges we encountered along the way.
+
+## **1. Introduction**
+
+This report provides an analysis of the top 500 ranked books on Goodreads. Our aim is to uncover patterns in reader preferences, genre popularity, author influence, and other trends based on a comprehensive dataset we obtained through web scraping.
+
+
+## **2. About the Data**
+
+The data for this analysis was scraped from Goodreads and includes the following features:<br>
+- **Rank**: Book ranking based on popularity and rating.<br>
+- **Title**: Book title.<br>
+- **Author Name**: Author(s) of the book.<br>
+- **Average Rating**: Average user rating of the book.<br>
+- **Number of Ratings (Rater)**: Total ratings given to the book.<br>
+- **Score**: Goodreads score based on votes and ratings.<br>
+- **Voters**: Number of users who voted on the book's score.<br>
+- **First Published Date**: Initial publication date of the book.<br>
+- **Price**: Price of the book.<br>
+- **Author Followers**: Count of followers of the author on Goodreads.<br>
+- **Number of Reviews**: Total reviews for the book.<br>
+- **Top Genres**: Top five genres associated with the book.<br>
+- **Rating Distribution**: Distribution of 1- to 5-star ratings.<br>
+- **Cover Type**: Format of the book cover (e.g., paperback, ebook).<br>
+- **Author Average Rating**: Average rating across all books by the author.<br>
+- **Medium of Publication**: Tye of publication medium for each book listed. <br>
+
+## **3. Obtaining the Data**
+- All the data that we have used including that of images of the author and book covers has been webscraped by us from the website: [Goodreads](https://www.goodreads.com/list/show/153860.Goodreads_Top_100_Highest_Rated_Books_on_Goodreads_with_at_least_10_000_Ratings) <br>
+
+## **4. Assumptions**
+1. **Ratings Assumption**: We assume that people who rate a book have read it, though this may not always be true.
+2. **Rater-Buyer Relationship**: We assume readers who rate the book have purchased it legally.
+
+## **5. Possible biases in the data**  
+1. We assume that every reader who rates a book has purchased it, either physically or digitally, but this overlooks the possibility of pirated versions, meaning raters may not be directly proportional to the number of buyers. <br>
+
+2. We assume that raters have purchased and read the book, making ratings proportional to book sales. However, some people may rate a book without reading it, potentially influenced by others, which could skew the accuracy of the ratings. <br>
+
+3. Our dataset is biased toward popular, top-ranked books on Goodreads, excluding lower-ranked titles. To achieve a more balanced dataset, we could include books with a wider range of rankings, including less popular ones.
+
+
+## **6. Interesting Questions** 
+1. What are the basic statistics of the data? <br>
+2. Who are the top authors on basis of book count and their rating ? <br>
+3. What is the distribution of ratings? <br>
+4. Which genres are most prevalent in the top 500 ranked books? <br>
+5. Which authors have the most followers? <br>
+6. How does an author's popularity (i.e., their ratings) influence the ratings of their books? <br>
+7. Which genres are most commonly associated with top authors? <br>
+8. Do books with more pages tend to receive more or fewer ratings from readers?<br>
+9. Do books with more pages tend to have higher prices? <br>
+10. Are lesser people able to read higher priced books? Do people possibly rate high priced book lower ?  <br>
+11. Are there certain genres which have become more popular in the recent years? <br>
+12. What are the genres with highest avg rating <br>
+13. Do hardcover books sell better or not and do they get better avg rating?<br>
+14. Relationship between publication year and number of raters of the book(that is the number of people reading that book). <br>
+
+```{r loading_libraries, echo=FALSE, results='hide', message=FALSE, warning=FALSE}
+library(ggplot2)
+library(dplyr)
+library(RColorBrewer)
+library(wordcloud2)
+library(shinythemes)
+library(reactable)
+```
+
+## **7. Name of Columns**
+```{r pressure_1, echo=FALSE, warning=FALSE}
+# Reading the dataset into 'group_6' and displaying column names
+group_6 <- read.csv("data_final_500.csv")
+group_6 <- group_6[-1] # column 1 is not needed
+
+group_6 <- group_6 %>%
+  mutate(cover_type = ifelse(cover_type == "Kindle Edition", 
+                             " ebook", cover_type)) 
+group_6 <- group_6 %>%
+  mutate(medium_of_publication = ifelse(cover_type %in% c(" Kindle Edition", " ebook"), "digital", "physical"))
+
+colnames(group_6)  # Display column names
+publishtion_year <- numeric(length = length(group_6$Rank))  
+
+for(i in 1:length(group_6$First_published)) {
+
+  publishtion_year[i] <- as.numeric(strsplit(group_6$First_published[i], ",")[[1]][2])
+}
+
+# Add the 'publishtion_year' column to 'group_6'
+group_6$publishtion_year <- publishtion_year
+
+```
+
+## **8. Basic Statistics and Missing Data**
+
+```{r summary_group6, echo=FALSE, warning=FALSE}
+# Summary statistics for the data
+summary(group_6)
+# Count the number of NA values for each column
+na_count <- colSums(is.na(group_6))
+print(na_count)
+```
+<u></u>
+***<u>Conclusion:-</u>***
+Based on the summary statistics and the missing values analysis for the group_6 dataset, here are the key insights and conclusions:<br>
+**Summary Statistics Overview:**<br>
+- The dataset ranks 500 top books with ranks ranging from 1 to 500, and an average rating between 3.33 and 4.81, with a median rating of 4.11. This suggests a generally high quality of books.<br>
+- Rater, score, and voter columns exhibit a wide range, with maximum values reaching into millions, indicating some highly popular books.<br>
+- The price feature has a large range (from 0 to 74.99), suggesting varying cost of books. The median price is 8.235, but there are missing values in this column (200 missing entries).<br>
+- Pages count varies significantly, with a minimum of 26 and a maximum of 4,100 **(Because the data contains some set of books in individual rank, that's why the number of pages is higher )** pages. The median value of 370 suggests that most books are moderately lengthy.<br>
+- Review counts and follower counts have high maximums (295,811 reviews and 857,000 followers), indicating the presence of very popular authors/books in the dataset.<br>
+**Missing Values Analysis:**<br>
+- The price column has a substantial number of missing values (200 out of 500), which might need handling to avoid issues in subsequent analyses.<br>
+- The pages column has 1 missing value, while genre columns (second_genre, third_genre, fourth_genre, fifth_genre) also have 1 missing value each, which may slightly impact genre-based analysis.<br>
+- Other features are complete, indicating good data quality overall, with minimal missing entries.
+
+## **9. Top Authors**
+
+```{r count_books_by_author, echo=FALSE, warning=FALSE}
+# Count the number of books by each author
+top_authors <- group_6 %>%
+  group_by(authorName) %>%
+  tally() %>%
+  arrange(desc(n))
+print("Top 10 authors based on the number of books available in the dataset")
+head(top_authors, 10)  # top 10 authors based on the number of books available in the dataset
+
+# Calculate the average rating for each author and sort by rating
+top_authors_by_rating <- group_6 %>%
+  group_by(authorName) %>%
+  summarise(avg_rating = mean(avg_rating)) %>%  # Calculate the average rating, ignoring NAs
+  arrange(desc(avg_rating))  # Sort by the average rating in descending order
+
+print("Top 10 authors based on their avg_rating")
+head(top_authors_by_rating, 10)  # top 10 authors based on their avg_rating
+```
+
+**Conclusion**: The list shows authors with the most books and highest average ratings, which suggests their popularity and quality.
+
+<span style="font-size:36px">**10. Visualisations**</span>
+
+## Rating Distribution
+
+```{r density_plot_avg_rating, echo=FALSE, warning=FALSE}
+library(ggplot2)
+ggplot(group_6, aes(x = avg_rating)) +
+  geom_density(fill = "blue", alpha = 0.5) +  # Blue color with transparency
+  labs(title = "Density Plot of Average Ratings", x = "Average Rating", y = "Density") +
+  theme_minimal()+
+  theme(
+    plot.background = element_rect(fill = "black"),
+    panel.background = element_rect(fill = "black"),
+    panel.grid.major = element_line(color = "gray40"),
+    panel.grid.minor = element_line(color = "gray20"),
+    axis.text = element_text(color = "white"),
+    axis.title = element_text(color = "white"),
+    plot.title = element_text(color = "white", hjust = 0.5, face = "bold"),
+    legend.background = element_rect(fill = "black"),
+    legend.text = element_text(color = "white"),
+    legend.title = element_text(color = "white")
+  )
+  
+  
+```
+
+
+**Conclusion**: The density plot shows that most books have a high average rating, with a peak around 4 stars.
+
+## Genre Distribution
+
+```{r genres_count, echo=FALSE, warning=FALSE}
+library(ggplot2)
+
+summary_data <- group_6 %>%
+  group_by(top_genre) %>%
+  summarise(
+    count = n_distinct(Rank), 
+    Avg_rank = mean(Rank, na.rm = TRUE)  # summarise the based on top_genre and arrange it in ascending order 
+  ) %>%
+  arrange(desc(count))
+
+# Define a color palette for the gradient
+colors <- c("#f0f0f0", "#ff7f0e", "#d62728", "#2ca02c", "#1f77b4")
+
+# Create the bar plot with custom theme and color gradient
+ggplot(summary_data, aes(x = reorder(top_genre, -count), y = count, fill = Avg_rank)) +
+  geom_bar(stat = "identity", width = 0.7) +
+  labs(title = "Genre Distribution",
+       x = "Genre", y = "Count") +
+  scale_fill_gradientn(colors = colors, name = "Average Rank") +
+  geom_text(aes(label = count), vjust = -0.5, color = "white") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  theme(
+    plot.background = element_rect(fill = "black"),
+    panel.background = element_rect(fill = "black"),
+    panel.grid.major = element_line(color = "gray40"),
+    panel.grid.minor = element_line(color = "gray20"),
+    axis.text = element_text(color = "white"),
+    axis.title = element_text(color = "white"),
+    plot.title = element_text(color = "white", hjust = 0.5, face = "bold"),
+    legend.background = element_rect(fill = "black"),
+    legend.text = element_text(color = "white"),
+    legend.title = element_text(color = "white")
+  )
+```
+
+**Conclusion**: Fiction, Fantasy, and Classics are the most common genres among top-rated books.
+
+## Countplot of Author's Followers
+```{r authors_most_followers_ggplot, echo=FALSE, warning=FALSE}
+most_followed_authors <- group_6 %>%
+  group_by(authorName) %>%
+  summarise(total_followers = sum(followers, na.rm = TRUE)) %>%
+  arrange(desc(total_followers))
+
+df <- head(most_followed_authors, 10)
+
+# Create the bar plot
+ggplot(df, aes(x = reorder(authorName, -total_followers), y = total_followers, fill = total_followers)) +
+  geom_bar(stat = "identity", width = 0.7) +  # Bar plot
+  labs(title = "Authors with the Most Followers", x = "Author", y = "Total Followers") +
+  coord_flip() +  # Flip coordinates to make it easier to read the author names
+  theme_minimal() +
+  geom_text(aes(label = total_followers), vjust = -0.5, color = "white") +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1),  # Angle the x-axis text for better readability
+    plot.title = element_text(hjust = 0.5, face = "bold"),
+    axis.title = element_text(face = "bold"),
+    axis.text = element_text(size = 10),
+    legend.position = "none"  # Remove legend
+  )+
+  theme(
+    plot.background = element_rect(fill = "black"),
+    panel.background = element_rect(fill = "black"),
+    panel.grid.major = element_line(color = "gray40"),
+    panel.grid.minor = element_line(color = "gray20"),
+    axis.text = element_text(color = "white"),
+    axis.title = element_text(color = "white"),
+    plot.title = element_text(color = "white", hjust = 0.5, face = "bold"),
+    legend.background = element_rect(fill = "black"),
+    legend.text = element_text(color = "white"),
+    legend.title = element_text(color = "white")
+  )
+print(df)
+```
+
+
+## Author's Influence on Book Rating
+```{r Author_avg_rating_VS_book_avg_rating, echo=FALSE , warning=FALSE}
+ggplot(group_6, aes(x = author_avg_rating, y = avg_rating)) +
+          geom_point(color = "lightgreen", size = 2, alpha = 0.7) +
+          geom_smooth(method = "lm", se = FALSE, color = "red") +
+          labs(title = "Book Rating vs Author Average Rating",
+               x = "Author Average Rating", y = "Book Rating") +
+          coord_cartesian(xlim = c(3, 5), ylim = c(3, 5)) +
+          annotate("text", x = 3.2, y = 4.8,
+                   label = paste("Correlation:", round(cor(group_6$avg_rating, group_6$author_avg_rating, use = "complete.obs"), 2)),
+                   color = "yellow", size = 5) +
+          theme(
+    plot.background = element_rect(fill = "black"),
+    panel.background = element_rect(fill = "black"),
+    panel.grid.major = element_line(color = "gray40"),
+    panel.grid.minor = element_line(color = "gray20"),
+    axis.text = element_text(color = "white"),
+    axis.title = element_text(color = "white"),
+    plot.title = element_text(color = "white", hjust = 0.5, face = "bold"),
+    legend.background = element_rect(fill = "black"),
+    legend.text = element_text(color = "white"),
+    legend.title = element_text(color = "white")
+  )
+```
+
+**Conclusion**: There is a positive correlation, suggesting that books by highly rated authors are more likely to receive high ratings. From a different perspective, this implies that popular and highly rated authors consistently produce high-quality books.
+
+## Author and their specific genres
+```{r Author_and_thier_genres, echo=FALSE, warning=FALSE}
+genre_author_counts <- group_6 %>%
+  group_by(authorName, top_genre) %>%
+  summarise(book_count = n()) %>%
+  arrange(desc(book_count))
+
+# Filter to focus on authors with a large presence across multiple genres (optional)
+top_authors_genres <- genre_author_counts %>%
+  filter(book_count > 1)  # Adjust as needed to focus on frequent combinations
+
+df2 <- head(top_authors_genres ,20) # considering Top 20 Author only
+
+# Plot as a heatmap to visualize associations between authors and genres
+ggplot(df2, aes(x = top_genre, y = authorName, fill = book_count)) +
+  geom_tile(color = "white") +
+  scale_fill_gradient(low = "lightblue", high = "darkblue", name = "Book Count") +
+  labs(
+    title = "Associations between Authors and Genres",
+    x = "Genre",
+    y = "Author") +
+  theme_minimal() +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1),
+    plot.title = element_text(hjust = 0.5, face = "bold")
+  )+
+  theme(
+    plot.background = element_rect(fill = "black"),
+    panel.background = element_rect(fill = "black"),
+    panel.grid.major = element_line(color = "gray40"),
+    panel.grid.minor = element_line(color = "gray20"),
+    axis.text = element_text(color = "white"),
+    axis.title = element_text(color = "white"),
+    plot.title = element_text(color = "white", hjust = 0.5, face = "bold"),
+    legend.background = element_rect(fill = "black"),
+    legend.text = element_text(color = "white"),
+    legend.title = element_text(color = "white")
+  )
+```
+
+**Conclusion**: This heatmap shows a strong association of top authors with some specific genres: for example, J.K. Rowling and Rick Riordan with Fantasy and Nicholas Sparks with Romance. Some authors, like Neil Gaiman and Haruki Murakami, span multiple genres, indicating versatility. Fantasy, Classics, and Fiction are the most popular genres among these authors.
+
+## Relation between book length and ratings: Do longer books receive higher or lower ratings?
+```{r pages_vs_avg_rating, echo=FALSE, warning=FALSE}
+ggplot(group_6, aes(x = pages, y = avg_rating)) +
+          geom_point(color = "lightblue", size = 2) +
+          geom_smooth(method = "lm", se = FALSE, color = "yellow") +
+          labs(x = "Number of Pages", y = "Average Rating",
+               title = "Page Count vs Average Rating") +
+          coord_cartesian(xlim = c(0, 1500), ylim = c(3, 5)) +
+          annotate("text", x = 100, y = 4.8,
+                   label = paste("Correlation:", round(cor(group_6$pages, group_6$avg_rating, use = "complete.obs"), 2)),
+                   color = "yellow", size = 5) +
+        theme(
+    plot.background = element_rect(fill = "black"),
+    panel.background = element_rect(fill = "black"),
+    panel.grid.major = element_line(color = "gray40"),
+    panel.grid.minor = element_line(color = "gray20"),
+    axis.text = element_text(color = "white"),
+    axis.title = element_text(color = "white"),
+    plot.title = element_text(color = "white", hjust = 0.5, face = "bold"),
+    legend.background = element_rect(fill = "black"),
+    legend.text = element_text(color = "white"),
+    legend.title = element_text(color = "white")
+  )
+```
+
+**<u>Conclusion:-</u>**
+This plot shows a moderate positive correlation (0.32) between the number of pages in a book and its average rating, suggesting that, to some extent, readers tend to favor longer books over shorter ones.
+
+# Relationship Between Book Length and the Number of Raters
+
+```{r pages_vs_rater, echo=FALSE, warning=FALSE}
+# Assuming group_6 is your data frame with 'pages' and 'rater' columns
+ggplot(group_6, aes(x = pages, y = log(rater))) +
+  geom_point(color = "lightblue", size = 2) +
+  geom_smooth(method = "lm", se = FALSE, color = "yellow") +
+  labs(
+    x = "Number of Pages",
+    y = "Raters (Log Scale)",
+    title = "Number of Pages vs. Number of Raters"
+  ) +
+  coord_cartesian(xlim = c(0, 1500))+
+  # Annotate with the correlation value
+  annotate(
+    "text",
+    x = min(group_6$pages) + 0.5,  # Adjust x position as needed
+    y = max(log(group_6$rater), na.rm = TRUE) - 0.5,  # Adjust y position as needed
+    label = paste("Correlation:", round(cor(group_6$pages, log(group_6$rater), use = "complete.obs"), 2)),
+    color = "yellow",
+    size = 5
+  ) +
+  # Theme modifications
+  theme(
+    plot.background = element_rect(fill = "black"),
+    panel.background = element_rect(fill = "black"),
+    panel.grid.major = element_line(color = "gray40"),
+    panel.grid.minor = element_line(color = "gray20"),
+    axis.text = element_text(color = "white"),
+    axis.title = element_text(color = "white"),
+    plot.title = element_text(color = "white", hjust = 0.5, face = "bold"),
+    legend.background = element_rect(fill = "black"),
+    legend.text = element_text(color = "white"),
+    legend.title = element_text(color = "white")
+  )
+
+
+```
+
+**<u>Conclusion:-</u>**
+We can see a very less negative correlation amongst the number of pages and the number of raters(readers) , hence the number of readers decreases only on significant increase in the book size.
+
+## Relationship between book length and price of the book
+
+```{r pages_vs_price2, echo=FALSE, warning=FALSE}
+ggplot(group_6, aes(x = pages, y = price)) +
+  geom_point(color = "red", size = 2) +  # Scatter plot
+  geom_smooth(method = "lm", se = FALSE, color = "blue") +  # Linear regression line
+  labs(x = "Number of Pages", y = "Price of the Book",
+       title = "Number of Pages vs Price of the Book") +
+  coord_cartesian(xlim = c(0, 1500))+
+  annotate("text", 
+           x = min(group_6$pages) + 0.5, 
+           y = max(group_6$price) - 0.5,
+           label = paste("Correlation:", round(cor(group_6$pages, group_6$price, use = "complete.obs"), 2)),
+           color = "yellow", size = 5) +  # Add correlation annotation
+  theme(
+    plot.background = element_rect(fill = "black"),
+    panel.background = element_rect(fill = "black"),
+    panel.grid.major = element_line(color = "gray40"),
+    panel.grid.minor = element_line(color = "gray20"),
+    axis.text = element_text(color = "white"),
+    axis.title = element_text(color = "white"),
+    plot.title = element_text(color = "white", hjust = 0.5, face = "bold"),
+    legend.background = element_rect(fill = "black"),
+    legend.text = element_text(color = "white"),
+    legend.title = element_text(color = "white")
+  )
+```
+
+**<u>Conclusion:-</u>**
+Although we might have expected the price of the book to increase with the number of pages, the data shows that this is not the case.
+
+## Relationship between price and number of readers
+
+```{r price_vd_readers, echo=FALSE, warning=FALSE}
+ggplot(group_6, aes(x = price, y = log(rater), color = medium_of_publication)) +
+  geom_point(size = 2) +  # Scatter plot
+  labs(x = "Price of the Book", y = "Number of Readers (Log Scale)",
+       title = "Price of the Book vs Number of Readers") +
+  coord_cartesian(xlim = c(0, 20)) +
+  theme(
+    plot.background = element_rect(fill = "black"),
+    panel.background = element_rect(fill = "black"),
+    panel.grid.major = element_line(color = "gray40"),
+    panel.grid.minor = element_line(color = "gray20"),
+    axis.text = element_text(color = "white"),
+    axis.title = element_text(color = "white"),
+    plot.title = element_text(color = "white", hjust = 0.5, face = "bold"),
+    legend.background = element_rect(fill = "black"),
+    legend.text = element_text(color = "white"),
+    legend.title = element_text(color = "white")
+  )
+```
+
+**<u>Conclusion:-</u>**
+One might have expected that books with lower prices may have more ratings due to higher accessibility, while more expensive books might have fewer ratings.However this can be observed to be not true as we observe that the number of ratings is almost uncorrelated to the price of the book , which may indicate that for these top ranked books people are willing to pay money even for an expensive book. 
+
+## certain genres which have become more popular in the recent years
+
+```{r Average rating vs publishtion_year by Genres, echo=FALSE, warning=FALSE}
+ggplot(group_6, aes(x = publishtion_year, y = avg_rating, color = top_genre)) +
+  geom_point(size = 2, alpha = 0.7) +  # Scatter plot
+  labs(x = "publishtion_year of the Book", y = "Average rating of the book",
+       title = "Average rating vs publishtion_year by Genres") +
+  coord_cartesian(xlim = c(1600, 2024)) +
+  theme(
+    plot.background = element_rect(fill = "black"),
+    panel.background = element_rect(fill = "black"),
+    panel.grid.major = element_line(color = "gray40"),
+    panel.grid.minor = element_line(color = "gray20"),
+    axis.text = element_text(color = "white"),
+    axis.title = element_text(color = "white"),
+    plot.title = element_text(color = "white", hjust = 0.5, face = "bold"),
+    legend.background = element_rect(fill = "black"),
+    legend.text = element_text(color = "white"),
+    legend.title = element_text(color = "white")
+  )
+```
+
+**<u>Conclusion:-</u>**
+**<u>Conclusion:-</u>**
+We can see the transition in sales(number of raters/readers) from the classics to fiction from 1850s to 1950s and further fiction has shifted to fantasy genre , young adult and romance in the 21st century which is clearly visible in the below plot. 
+
+
+```{r t, echo=FALSE, warning=FALSE}
+selected_genres2 <- c("Fiction", "Fantasy", "Young Adult","Historical Fiction")
+filtered_data2 <- group_6 %>%
+  filter(top_genre %in% selected_genres2)
+ggplot(filtered_data2, aes(x = publishtion_year, y = avg_rating, color = top_genre)) +
+  geom_point(size = 2, alpha = 0.7) +  # Scatter plot
+  labs(x = "publishtion_year of the Book", y = "Average rating of the book",
+       title = "Average rating vs publishtion_year by Genres") +
+  coord_cartesian(xlim = c(1975, 2024)) +
+  theme(
+    plot.background = element_rect(fill = "black"),
+    panel.background = element_rect(fill = "black"),
+    panel.grid.major = element_line(color = "gray40"),
+    panel.grid.minor = element_line(color = "gray20"),
+    axis.text = element_text(color = "white"),
+    axis.title = element_text(color = "white"),
+    plot.title = element_text(color = "white", hjust = 0.5, face = "bold"),
+    legend.background = element_rect(fill = "black"),
+    legend.text = element_text(color = "white"),
+    legend.title = element_text(color = "white")
+  )
+```
+
+## Highest rated genres
+```{r Highest rated genres, echo=FALSE, warning=FALSE}
+# Define custom colors for each selected genre (make sure the length matches the number of genres)
+# If `selected_genres` is defined previously, confirm its existence:
+selected_genres <- c("Graphic Novels", "Picture Books", "Childrens", "Fiction", 
+                     "Fantasy", "Classics", "Young Adult")
+
+# Define custom colors for each selected genre
+colors <- c("Graphic Novels" = "skyblue", "Picture Books" = "pink", 
+            "Childrens" = "lightgreen", "Fiction" = "coral", 
+            "Fantasy" = "lavender", "Classics" = "gold", 
+            "Young Adult" = "magenta")
+
+# Proceed with filtering and plotting
+filtered_data <- group_6 %>%
+  filter(top_genre %in% selected_genres)
+
+ggplot(filtered_data, aes(x = reorder(top_genre, -avg_rating), y = avg_rating, fill = top_genre)) +
+  geom_boxplot(outlier.color = "yellow", outlier.size = 2, alpha = 0.7) +
+  scale_fill_manual(values = colors) +
+  labs(title = "Average Rating by Top Genres",
+       x = "Genres", y = "Average Rating") +
+  coord_cartesian() +  # Optional
+  theme_classic() +  # Alternative theme to test
+  theme(
+    plot.background = element_rect(fill = "black"),
+    panel.background = element_rect(fill = "white"),
+    axis.text.x = element_text(angle = 45, hjust = 1, color = "white"),
+    axis.text.y = element_text(color = "white"),
+    axis.title = element_text(color = "white"),
+    plot.title = element_text(color = "white", hjust = 0.5, face = "bold"),
+    legend.position = "none",
+    panel.grid.major = element_line(color = "gray30"),
+    panel.grid.minor = element_line(color = "gray20")
+  )
+
+```
+
+**<u>Conclusion:-</u>**
+We can observe that the genres of Graphic novels , Picture books and Childrens books have the highest average rating , which may suggest that children give higher rating to books than adults and maybe that in adulthood we are able to assess things more critically .
+
+## Medium of publication
+```{r Medium of publication, echo=FALSE, warning=FALSE}
+ggplot(group_6, aes(x = price, y = log(rater), color = medium_of_publication)) +
+  geom_point(size = 2, alpha = 0.7) +  # Scatter plot
+  labs(x = "Book Price", y = "Number of Raters in log scale",
+       title = "Book Price vs Number of Raters") +
+  coord_cartesian(xlim = c(0, 30)) +
+  theme(
+    plot.background = element_rect(fill = "black"),
+    panel.background = element_rect(fill = "black"),
+    panel.grid.major = element_line(color = "gray40"),
+    panel.grid.minor = element_line(color = "gray20"),
+    axis.text = element_text(color = "white"),
+    axis.title = element_text(color = "white"),
+    plot.title = element_text(color = "white", hjust = 0.5, face = "bold"),
+    legend.background = element_rect(fill = "black"),
+    legend.text = element_text(color = "white"),
+    legend.title = element_text(color = "white")
+  )
+```
+
+**<u>Conclusion:-</u>**
+We can observe that for a given price the number of raters(the people reading it after purchasing) is not affected if the medium of publication is digital or physical .
+
+```{r y, echo=FALSE, warning=FALSE}
+ggplot(group_6, aes(x = price, y = avg_rating, color = medium_of_publication)) +
+  geom_point(size = 2, alpha = 0.7) +  # Scatter plot
+  labs(x = "Book Price", y = "Average Rating ",
+       title = "seeing the effect of medium of publication on the avg rating for a certain price of the book") +
+  coord_cartesian(xlim = c(0, 30)) +
+  theme(
+    plot.background = element_rect(fill = "black"),
+    panel.background = element_rect(fill = "black"),
+    panel.grid.major = element_line(color = "gray40"),
+    panel.grid.minor = element_line(color = "gray20"),
+    axis.text = element_text(color = "white"),
+    axis.title = element_text(color = "white"),
+    plot.title = element_text(color = "white", hjust = 0.5, face = "bold"),
+    legend.background = element_rect(fill = "black"),
+    legend.text = element_text(color = "white"),
+    legend.title = element_text(color = "white")
+  )
+```
+
+**<u>Conclusion:-</u>**
+One might have thought that for a given price the people might rate the book with physical cover higher than the digital books as reading a physical book has a certain feel to it however we observe that it does not seem to be true as for a given price the medium of publication does not affect the avg rating much.
+
+## Publication Year vs number of readers
+
+```{r Publication Year vs number of readers, echo=FALSE, warning=FALSE}
+
+ggplot(group_6, aes(x = publishtion_year, y = log(rater),  color = top_genre)) +
+  geom_point(size = 2, alpha = 0.7) +  # Scatter plot
+  labs(x = "Publication Year", y = "Number of Readers in log scale",
+       title = "Publication Year vs Number of Readers by Top Genres") +
+  # Adjust x-axis range based on the actual publication years in your dataset
+  coord_cartesian(xlim = c(1970, 2020)) +  # Example range, modify as needed
+  theme(
+    plot.background = element_rect(fill = "black"),
+    panel.background = element_rect(fill = "black"),
+    panel.grid.major = element_line(color = "gray40"),
+    panel.grid.minor = element_line(color = "gray20"),
+    axis.text = element_text(color = "white"),
+    axis.title = element_text(color = "white"),
+    plot.title = element_text(color = "white", hjust = 0.5, face = "bold"),
+    legend.background = element_rect(fill = "black"),
+    legend.text = element_text(color = "white"),
+    legend.title = element_text(color = "white")
+  )
+
+```
+
+**<u>Conclusion:-</u>**
+We can observe that the books with more recent publication dates that is those of after 2000’s have higher number of ratings and hence can be assumed to have been read much more in the recent years as compared to the older books. 
+
+
+<span style="font-size:28px">**11. Some Additional Visualisations**</span>
+
+
+## Cover_type count plot
+```{r cover_type_count, echo=FALSE, warning=FALSE}
+cover_counts <- group_6 %>%
+  count(cover_type) %>%
+  rename(count2 = n)
+
+ggplot(cover_counts, aes(x = reorder(cover_type, -count2), y = count2, fill = cover_type)) +
+  geom_bar(stat = "identity") +
+  labs(title = "Distribution of Book Cover Types", x = "Cover Type", y = "Count") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  geom_text(aes(label = count2), vjust = -0.5, color = "white") +
+  theme(
+    plot.background = element_rect(fill = "black"),
+    panel.background = element_rect(fill = "black"),
+    panel.grid.major = element_line(color = "gray40"),
+    panel.grid.minor = element_line(color = "gray20"),
+    axis.text = element_text(color = "white"),
+    axis.title = element_text(color = "white"),
+    plot.title = element_text(color = "white", hjust = 0.5, face = "bold"),
+    legend.background = element_rect(fill = "black"),
+    legend.text = element_text(color = "white"),
+    legend.title = element_text(color = "white")
+  )
+```
+
+**<u>Conclusion:-</u>**
+
+The analysis shows that the majority of books in the dataset have a paperback cover type. This suggests that paperback editions are more prevalent, likely due to their affordability and wider availability compared to hardcover or digital formats.
+
+
+## Average Rating vs Price by Genre
+
+```{r Price_by_Genre, echo=FALSE, warning=FALSE}
+# Find the top 10 genres by average rating
+top_15_genres <- group_6 %>%
+  group_by(top_genre) %>%
+  summarise(avg_rating = mean(avg_rating, na.rm = TRUE)) %>%
+  arrange(desc(avg_rating)) %>%
+  head(15)
+
+# Join the top 10 genres back to the main dataset
+group_6_top15 <- group_6 %>%
+  filter(top_genre %in% top_15_genres$top_genre)
+
+# Plot Average Rating vs Price for the top 10 genres
+ggplot(group_6_top15, aes(x = price , y = avg_rating, color = top_genre)) +
+  geom_point(size = 3) +  # Scatter plot of average rating vs price
+  labs(x = "price of the book", y = "Average Rating",
+       title = "Average Rating vs Price by Genre") +
+  theme_minimal() +
+  coord_cartesian(xlim = c(0, 30)) +
+  theme(
+    plot.background = element_rect(fill = "black"),
+    panel.background = element_rect(fill = "black"),
+    panel.grid.major = element_line(color = "gray40"),
+    panel.grid.minor = element_line(color = "gray20"),
+    axis.text = element_text(color = "white"),
+    axis.title = element_text(color = "white"),
+    plot.title = element_text(color = "white", hjust = 0.5, face = "bold"),
+    legend.background = element_rect(fill = "black"),
+    legend.text = element_text(color = "white"),
+    legend.title = element_text(color = "white")
+  )
+```
+
+**<u>Conclusion:-</u>**
+We can observe that the price does not influence the average rating received by the book. Therefore, our assumption that a higher price might lead to a lower average rating was incorrect across all genres.
+
+# Box-plot of Average Rating by Top 5 Genres
+```{r box_plot, echo=FALSE}
+
+selected_genres <- c("Fiction", "Fantasy","Classics", "Young Adult","Historical Fiction")
+
+# Filter data by selected genres
+filtered_data <- group_6 %>%
+  filter(top_genre %in% selected_genres)
+
+
+# Create the boxplot with custom colors
+ggplot(filtered_data, aes(x = reorder(top_genre, -avg_rating), y = avg_rating, fill = top_genre)) +
+  geom_boxplot(outlier.color = "yellow", outlier.size = 2, alpha = 0.7) +
+  scale_fill_manual(values = colors) +  # Apply custom colors
+  labs(title = "Average Rating by Top 5 Genres",
+       x = "Genres", y = "Average Rating") +
+  theme_minimal() +
+  theme(
+    # Set the plot background to black
+    plot.background = element_rect(fill = "black"),
+    panel.background = element_rect(fill = "white"),  # Set panel background to black
+    axis.text.x = element_text(angle = 45, hjust = 1, color = "white"),
+    axis.text.y = element_text(color = "white"),
+    axis.title = element_text(color = "white"),
+    plot.title = element_text(color = "white", hjust = 0.5, face = "bold"),
+    legend.position = "none", # Hide legend
+    # Maintain light grid lines
+    panel.grid.major = element_line(color = "gray30"),
+    panel.grid.minor = element_line(color = "gray20")
+  )
+```
+
+This plot shows the box plot of the average rating based on top 5 genres.
+<br>
+
+<span style="font-size:28px">
+**12. Overall Conclusion**
+ </span>
+
+The analysis highlights several trends in book popularity, genre influence, author reputation, and the relationship between book characteristics like page count and ratings. While certain genres dominate the top ranks, the quality of authors and book content also plays a significant role in reader reception.
+
+<span style="font-size:28px">
+**13. Challenges Faced**
+ </span>
+
+We frequently face timeout issues due to the complexity of the data structure, which leads to long execution times exceeding 30 minutes. The inefficiency in R loops further compounds the problem, as they struggle to process large datasets quickly enough. As a result, the system times out before completing the task. Despite various optimization attempts, the intricate data handling and slow loop execution continue to lead to persistent timeout errors, significantly affecting the performance and efficiency of our code. Another challenge encountered during the project was the missing values in the 'price' column for several books. This inconsistency affected the accuracy and efficiency of certain visualizations, particularly those involving price-based analysis. <br>
+Another challenge encountered during the project was the missing values in the 'price' column for several books. This inconsistency may have affected the accuracy of certain visualizations involving price-based analysis a bit.
+
+
+
+
+## **14. References**
+
+[Goodreads Top 500 Highest Rated Books  - Page 2](https://www.goodreads.com/list/show/1.Best_Books_Ever?page=1) <br>
+[Web scraping from the same level multiple nodes with the same names - StackOverflow](https://stackoverflow.com/questions/67644269/web-scraping-from-the-same-level-multiple-nodes-with-the-same-names)
+<br>
+<br>
